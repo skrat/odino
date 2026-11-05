@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-pub const SPRITE_PATH: &str = "textures/100-offline-sprite.png";
-
 pub const SPEED_TO_SCORE: f32 = 1. / 200.;
 
 pub const D100: Config = Config {

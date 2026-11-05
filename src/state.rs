@@ -6,13 +6,17 @@ pub enum GameState {
     Init,
     Running,
     Paused,
+    GameOver,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Deref)]
 pub struct Speed(pub f32);
 
-#[derive(Resource, Deref, DerefMut)]
+#[derive(Resource, Default, Deref, DerefMut)]
 pub struct Score(pub f32);
+
+#[derive(Component)]
+pub struct Obstacle;
 
 pub fn not_in_state<S: States>(state: S) -> impl FnMut(Option<Res<State<S>>>) -> bool + Clone {
     move |current_state: Option<Res<State<S>>>| match current_state {

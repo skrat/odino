@@ -1,22 +1,36 @@
+use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::{constants::*, state::GameState};
+use crate::{assets::*, constants::*, state::*, util::*};
 
 pub struct TrexPlugin;
 
 impl Plugin for TrexPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_trex)
-            .add_systems(Update, animate_trex.run_if(in_state(GameState::Running)))
-            .add_systems(Update, jump_on_key.run_if(in_state(GameState::Running)))
-            .insert_resource(JumpKeyDown(false))
-            .init_resource::<KeySoundEffect>()
             .add_systems(
-                FixedUpdate,
-                jumping_trex.run_if(
-                    in_state(GameState::Running).and_then(trex_in_state(TrexState::Jumping)),
+                Update,
+                (
+                    animate_trex.run_if(in_state(GameState::Running)),
+                    jump_on_key.run_if(in_state(GameState::Running)),
+                    jumping_trex.run_if(
+                        in_state(GameState::Running).and_then(trex_in_state(TrexState::Jumping)),
+                    ),
+                    detect_collisions.run_if(in_state(GameState::Running)),
+                    check_image_loaded.run_if(in_state(ImageState::Init)),
                 ),
-            );
+            )
+            .insert_resource(JumpKeyDown(false))
+            .init_resource::<ImageHandle>()
+            .init_state::<ImageState>()
+            .add_systems(OnEnter(ImageState::Loaded), update_collider)
+            .init_resource::<KeySoundEffect>();
+
+        #[cfg(feature = "dev")]
+        app.add_systems(
+            Update,
+            bevy::dev_tools::states::log_transitions::<ImageState>,
+        );
     }
 }
 
@@ -58,11 +72,21 @@ struct KeySoundEffect {
     handle: Handle<AudioSource>,
 }
 
+#[derive(Clone, Debug, Default, Eq, Hash, PartialEq, States)]
+enum ImageState {
+    #[default]
+    Init,
+    Loaded,
+}
+
+#[derive(Resource, Default, Deref, DerefMut)]
+struct ImageHandle(Option<Handle<Image>>);
+
 impl FromWorld for KeySoundEffect {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.resource::<AssetServer>();
         KeySoundEffect {
-            handle: asset_server.load("sounds/button-press.mp3"),
+            handle: asset_server.load(BUTTON_PRESS_PATH),
         }
     }
 }
@@ -71,19 +95,24 @@ fn spawn_trex(
     cfg: Res<Config>,
     asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut image: ResMut<ImageHandle>,
     mut commands: Commands,
 ) {
-    let tex = asset_server.load(SPRITE_PATH);
+    let tex = asset_server.load::<Image>(SPRITE_PATH);
+    *image = ImageHandle(Some(tex.clone()));
+
     let layout = atlas_layouts.add(cfg.trex_sprite);
     let tile_start = 2;
     let tile_end = 3;
 
-    let p = Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.35, 100.);
+    let pos = Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.35, 100.);
+    // let collider_points = points_for_convex_hull(*tex, rect, None);
 
     commands.spawn((
-        Transform::from_translation(p),
+        Transform::from_translation(pos),
         Visibility::default(),
         children![(
+            Name::new("T-Rex"),
             Sprite::from_atlas_image(
                 tex,
                 TextureAtlas {
@@ -97,6 +126,9 @@ fn spawn_trex(
             },
             AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             Transform::from_translation(Vec3::ZERO),
+            RigidBody::Kinematic,
+            Collider::rectangle(cfg.trex_sprite.size.x as f32, cfg.trex_sprite.size.y as f32),
+            CollidingEntities::default(),
             Trex::default(),
         )],
     ));
@@ -176,5 +208,57 @@ fn jump_on_key(
     }
     if input.just_released(KeyCode::Space) || input.just_released(KeyCode::ArrowUp) {
         down.0 = false;
+    }
+}
+
+fn detect_collisions(
+    colliding_q: Query<(Entity, &CollidingEntities)>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    for (_, colliding_entities) in colliding_q {
+        if colliding_entities.len() > 0 {
+            info!("T-Rex collision!");
+            next_state.set(GameState::GameOver);
+        }
+    }
+}
+
+fn check_image_loaded(
+    image: Res<ImageHandle>,
+    mut rdr: MessageReader<AssetEvent<Image>>,
+    mut next_state: ResMut<NextState<ImageState>>,
+) {
+    if let Some(handle) = &**image.as_ref() {
+        for evt in rdr.read() {
+            if evt.is_loaded_with_dependencies(handle) {
+                next_state.set(ImageState::Loaded);
+            }
+        }
+    }
+}
+
+fn update_collider(
+    cfg: Res<Config>,
+    image: Res<ImageHandle>,
+    images: Res<Assets<Image>>,
+    trex: Single<Entity, With<Trex>>,
+    mut colliders: ResMut<ColliderMap>,
+    mut commands: Commands,
+) {
+    if let Some(handle) = &**image {
+        match images.get(handle) {
+            Some(img) => {
+                let rect = URect::new(
+                    cfg.trex_sprite.offset.x,
+                    cfg.trex_sprite.offset.y,
+                    cfg.trex_sprite.offset.x + cfg.trex_sprite.size.x,
+                    cfg.trex_sprite.offset.y + cfg.trex_sprite.size.y,
+                );
+                let collider = colliders.add(handle.id(), img, &rect, None);
+                let mut entity = commands.entity(*trex);
+                entity.insert(collider);
+            }
+            None => panic!(),
+        }
     }
 }

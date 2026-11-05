@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+avian2d = "0.8"
 bevy = { version = "0.20", features = ["bevy_dev_tools"] }
 bitflags = "2.13.2"
 rand = "0.10.3"

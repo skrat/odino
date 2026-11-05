@@ -1,14 +1,15 @@
 use std::time::Duration;
 
+use avian2d::prelude::*;
 use bevy::prelude::*;
 use rand::{
     Rng, RngExt,
-    distr::{Distribution, StandardUniform},
+    distr::{Distribution, StandardUniform, weighted::WeightedIndex},
 };
 
-use crate::{constants::*, state::*};
+use crate::{assets::SPRITE_PATH, constants::*, state::*};
 
-const CACTI_SPAWN_RAND: std::ops::Range<f32> = 2.0..3.0;
+const CACTI_SPAWN_RAND: std::ops::Range<f32> = 1.0..3.0;
 
 pub struct GroundPlugin;
 
@@ -69,6 +70,7 @@ fn spawn_ground(
 
     commands
         .spawn((
+            Name::new("Ground"),
             Transform::from_translation(Vec3::new(0., 0., 80.)),
             Visibility::default(),
             Ground,
@@ -116,7 +118,7 @@ fn setup_cacti(
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut commands: Commands,
 ) {
-    let tex = asset_server.load(SPRITE_PATH);
+    let tex = asset_server.load::<Image>(SPRITE_PATH);
     let layout_sm = atlas_layouts.add(cfg.cacti_sm);
     let layout_md = atlas_layouts.add(cfg.cacti_md);
     let layout_lg = atlas_layouts.add(cfg.cacti_lg);
@@ -138,12 +140,12 @@ fn spawn_cacti(
     mut timer: Query<&mut CactiTimer>,
     handle: Res<CactiHandles>,
     atlas_layouts: Res<Assets<TextureAtlasLayout>>,
-    mut commands: Commands,
+    commands: Commands,
 ) {
     let mut tmr = timer.single_mut().unwrap();
     tmr.tick(t.delta());
     if tmr.just_finished() {
-        commands.spawn(random_cacti(&cfg, &handle, &atlas_layouts));
+        random_cacti(&cfg, &handle, &atlas_layouts, commands);
         tmr.set_duration(Duration::from_secs_f32(rand::random_range(
             CACTI_SPAWN_RAND,
         )));
@@ -164,7 +166,13 @@ impl Distribution<Cacti> for StandardUniform {
 
 impl Cacti {
     fn pick(handle: &CactiHandles) -> (Cacti, Handle<TextureAtlasLayout>) {
-        let c: Cacti = rand::random();
+        const CHOICES: [Cacti; 3] = [Cacti::Sm, Cacti::Md, Cacti::Lg];
+        const WEIGHTS: [usize; 3] = [3, 3, 1];
+
+        let dist = WeightedIndex::new(&WEIGHTS).unwrap();
+        let mut rng = rand::rng();
+        let c = &CHOICES[dist.sample(&mut rng)];
+
         match c {
             Cacti::Sm => (Cacti::Sm, handle.layout_sm.clone()),
             Cacti::Md => (Cacti::Md, handle.layout_md.clone()),
@@ -177,36 +185,55 @@ fn random_cacti(
     cfg: &Config,
     handle: &CactiHandles,
     atlas_layouts: &Assets<TextureAtlasLayout>,
-) -> impl Bundle {
+    mut commands: Commands,
+) {
     let (cacti, layout_handle) = Cacti::pick(handle);
     let layout = atlas_layouts.get(layout_handle.id()).unwrap();
-    let size = match cacti {
+    let single_size = match cacti {
         Cacti::Sm => cfg.cacti_sm.size,
         Cacti::Md => cfg.cacti_md.size,
         Cacti::Lg => cfg.cacti_lg.size,
     };
-    (
-        Sprite::from_atlas_image(
-            handle.tex.clone(),
-            TextureAtlas {
-                layout: layout_handle,
-                index: rand::random_range(0..layout.textures.len()),
-            },
-        ),
-        Transform::from_xyz(
-            cfg.size.x + size.x as f32,
-            size.y as f32 * 0.5 - cfg.size.y * 0.05,
-            0.,
-        ),
-        CactiSize { w: size.x as f32 },
-        cacti,
-    )
+    let sprite = Sprite::from_atlas_image(
+        handle.tex.clone(),
+        TextureAtlas {
+            layout: layout_handle,
+            index: rand::random_range(0..layout.textures.len()),
+        },
+    );
+    let cnt = match cacti {
+        Cacti::Sm => rand::random_range(1..=3),
+        Cacti::Md => rand::random_range(1..=2),
+        Cacti::Lg => 1,
+    };
+    let total_width = (single_size.x * cnt) as f32;
+    commands
+        .spawn((
+            Name::new("Cacti"),
+            Visibility::default(),
+            Transform::from_xyz(
+                cfg.size.x + total_width,
+                single_size.y as f32 * 0.5 - cfg.size.y * 0.05,
+                0.,
+            ),
+            RigidBody::Kinematic,
+            Collider::rectangle(total_width, single_size.y as f32),
+            CactiSize { w: total_width },
+            Obstacle,
+        ))
+        .with_children(|parent| {
+            let mut x = -0.5 * total_width + 0.5 * single_size.x as f32;
+            for _ in 0..cnt {
+                parent.spawn((sprite.clone(), Transform::from_xyz(x, 0., 0.)));
+                x += single_size.x as f32;
+            }
+        });
 }
 
 fn animate_cacti(
     t: Res<Time<Virtual>>,
     s: Res<Speed>,
-    q: Query<(&mut Transform, &CactiSize, Entity), With<Cacti>>,
+    q: Query<(&mut Transform, &CactiSize, Entity)>,
     mut commands: Commands,
 ) {
     let d = t.delta_secs() * s.0;
