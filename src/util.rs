@@ -4,19 +4,13 @@ use avian2d::{collision::collider::Collider, math::RVector};
 use bevy::prelude::*;
 
 #[derive(Resource, Default, Deref, DerefMut)]
-pub struct ColliderMap(HashMap<AssetId<Image>, Collider>);
+pub struct ColliderMap(HashMap<URect, Collider>);
 
 impl ColliderMap {
-    pub fn add(
-        &mut self,
-        id: AssetId<Image>,
-        img: &Image,
-        rect: &URect,
-        threshold: Option<f32>,
-    ) -> Collider {
+    pub fn add(&mut self, img: &Image, rect: &URect, threshold: Option<f32>) -> Collider {
         let points = points_for_convex_hull(img, rect, threshold);
         let collider = Collider::convex_hull(&points).unwrap();
-        self.insert(id, collider.clone());
+        self.insert(*rect, collider.clone());
         collider
     }
 }

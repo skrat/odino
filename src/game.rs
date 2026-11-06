@@ -1,7 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::{assets::*, constants::*, state::*, util::ColliderMap};
+use crate::{assets::*, config::*, state::*, util::ColliderMap};
 
 #[derive(Component)]
 struct GameStateLabel;

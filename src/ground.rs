@@ -7,7 +7,12 @@ use rand::{
     distr::{Distribution, StandardUniform, weighted::WeightedIndex},
 };
 
-use crate::{assets::SPRITE_PATH, constants::*, state::*};
+use crate::{
+    assets::{SPRITE_PATH, SpriteHandle, SpriteState},
+    config::*,
+    state::*,
+    util::ColliderMap,
+};
 
 const CACTI_SPAWN_RAND: std::ops::Range<f32> = 1.0..3.0;
 
@@ -16,6 +21,7 @@ pub struct GroundPlugin;
 impl Plugin for GroundPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (spawn_ground, setup_cacti).chain())
+            .add_systems(OnEnter(SpriteState::Loaded), update_colliders)
             .add_systems(
                 Update,
                 (
@@ -41,7 +47,7 @@ struct CactiHandles {
     layout_lg: Handle<TextureAtlasLayout>,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 enum Cacti {
     Sm,
     Md,
@@ -49,9 +55,12 @@ enum Cacti {
 }
 
 #[derive(Component)]
-struct CactiSize {
+struct CactiTotalSize {
     w: f32,
 }
+
+#[derive(Component, Deref)]
+struct CactiRect(URect);
 
 #[derive(Component, Deref, DerefMut)]
 struct CactiTimer(Timer);
@@ -102,9 +111,11 @@ fn animate_ground(
 ) {
     let d = t.delta_secs() * s.0;
     let max = q.iter().fold(0.0, |acc, (tf, _)| tf.translation.x.max(acc));
+    // Move all ground tiles
     for (mut tf, mut sprite) in q {
         tf.translation.x -= d;
         if tf.translation.x < -(0.5 * cfg.ground_sprite.size.x as f32) {
+            // Move tile to back (right) and randomize atlas index
             tf.translation.x = max + cfg.ground_sprite.size.x as f32 - d;
             let atlas = sprite.texture_atlas.as_mut().unwrap();
             atlas.index = rand::random_range(0..(cfg.ground_sprite.cols as usize));
@@ -137,6 +148,7 @@ fn setup_cacti(
 fn spawn_cacti(
     t: Res<Time<Virtual>>,
     cfg: Res<Config>,
+    colliders: Res<ColliderMap>,
     mut timer: Query<&mut CactiTimer>,
     handle: Res<CactiHandles>,
     atlas_layouts: Res<Assets<TextureAtlasLayout>>,
@@ -145,7 +157,7 @@ fn spawn_cacti(
     let mut tmr = timer.single_mut().unwrap();
     tmr.tick(t.delta());
     if tmr.just_finished() {
-        random_cacti(&cfg, &handle, &atlas_layouts, commands);
+        random_cacti(&cfg, &handle, &colliders, &atlas_layouts, commands);
         tmr.set_duration(Duration::from_secs_f32(rand::random_range(
             CACTI_SPAWN_RAND,
         )));
@@ -184,6 +196,7 @@ impl Cacti {
 fn random_cacti(
     cfg: &Config,
     handle: &CactiHandles,
+    colliders: &ColliderMap,
     atlas_layouts: &Assets<TextureAtlasLayout>,
     mut commands: Commands,
 ) {
@@ -194,13 +207,11 @@ fn random_cacti(
         Cacti::Md => cfg.cacti_md.size,
         Cacti::Lg => cfg.cacti_lg.size,
     };
-    let sprite = Sprite::from_atlas_image(
-        handle.tex.clone(),
-        TextureAtlas {
-            layout: layout_handle,
-            index: rand::random_range(0..layout.textures.len()),
-        },
-    );
+    let atlas = TextureAtlas {
+        layout: layout_handle,
+        index: rand::random_range(0..layout.textures.len()),
+    };
+    let sprite = Sprite::from_atlas_image(handle.tex.clone(), atlas.clone());
     let cnt = match cacti {
         Cacti::Sm => rand::random_range(1..=3),
         Cacti::Md => rand::random_range(1..=2),
@@ -217,14 +228,26 @@ fn random_cacti(
                 0.,
             ),
             RigidBody::Kinematic,
-            Collider::rectangle(total_width, single_size.y as f32),
-            CactiSize { w: total_width },
+            CactiTotalSize { w: total_width },
             Obstacle,
         ))
         .with_children(|parent| {
             let mut x = -0.5 * total_width + 0.5 * single_size.x as f32;
+            let rect = atlas.texture_rect(atlas_layouts).unwrap();
+            let collider = colliders
+                .get(&rect)
+                .and_then(|x| Some(x.clone()))
+                .unwrap_or_else(|| {
+                    println!("MISSED CMAP {:?}", rect);
+                    Collider::rectangle(single_size.x as f32, single_size.y as f32)
+                });
             for _ in 0..cnt {
-                parent.spawn((sprite.clone(), Transform::from_xyz(x, 0., 0.)));
+                parent.spawn((
+                    sprite.clone(),
+                    Transform::from_xyz(x, 0., 0.),
+                    collider.clone(),
+                    CactiRect(rect),
+                ));
                 x += single_size.x as f32;
             }
         });
@@ -233,7 +256,7 @@ fn random_cacti(
 fn animate_cacti(
     t: Res<Time<Virtual>>,
     s: Res<Speed>,
-    q: Query<(&mut Transform, &CactiSize, Entity)>,
+    q: Query<(&mut Transform, &CactiTotalSize, Entity)>,
     mut commands: Commands,
 ) {
     let d = t.delta_secs() * s.0;
@@ -242,5 +265,28 @@ fn animate_cacti(
         if tf.translation.x < -size.w {
             commands.entity(ent).despawn();
         }
+    }
+}
+
+fn update_colliders(
+    cfg: Res<Config>,
+    image: Res<SpriteHandle>,
+    mut colliders: ResMut<ColliderMap>,
+    images: Res<Assets<Image>>,
+    cacti: Query<(Entity, &CactiRect)>,
+    mut commands: Commands,
+) {
+    match images.get(image.id()) {
+        Some(img) => {
+            cfg.cacti_sm.add_colliders(img, &mut colliders);
+            cfg.cacti_md.add_colliders(img, &mut colliders);
+            cfg.cacti_lg.add_colliders(img, &mut colliders);
+
+            for (e, rect) in cacti {
+                let mut entity = commands.entity(e);
+                entity.insert(colliders.get(&rect).unwrap().clone());
+            }
+        }
+        None => panic!(),
     }
 }

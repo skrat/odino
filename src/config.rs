@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::util::ColliderMap;
+
 pub const SPEED_TO_SCORE: f32 = 1. / 200.;
 
 pub const D100: Config = Config {
@@ -73,5 +75,22 @@ pub struct SpriteConfig {
 impl Into<TextureAtlasLayout> for SpriteConfig {
     fn into(self) -> TextureAtlasLayout {
         TextureAtlasLayout::from_grid(self.size, self.cols, self.rows, None, Some(self.offset))
+    }
+}
+
+impl SpriteConfig {
+    pub fn rect(self, index: u32) -> URect {
+        let col = index % self.cols;
+        let row = index / self.cols;
+        let x = self.offset.x + self.size.x * col;
+        let y = self.offset.y + self.size.y * row;
+        URect::new(x, y, x + self.size.x, y + self.size.y)
+    }
+
+    pub fn add_colliders(&self, img: &Image, map: &mut ColliderMap) {
+        for i in 0..(self.cols * self.rows) {
+            let rect = self.rect(i);
+            map.add(img, &rect, None);
+        }
     }
 }

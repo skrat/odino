@@ -3,7 +3,7 @@ use bevy::{camera::ScalingMode, prelude::*};
 
 use crate::{
     assets::EmbeddedAssetsPlugin,
-    constants::{Config, D100},
+    config::{Config, D100},
     debug::DebugPlugin,
     game::GameControlPlugin,
     ground::GroundPlugin,
@@ -11,7 +11,7 @@ use crate::{
 };
 
 mod assets;
-mod constants;
+mod config;
 mod debug;
 mod game;
 mod ground;
