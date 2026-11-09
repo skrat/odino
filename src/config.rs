@@ -2,17 +2,27 @@ use bevy::prelude::*;
 
 use crate::util::ColliderMap;
 
-pub const SPEED_TO_SCORE: f32 = 1. / 200.;
+pub const SPEED_TO_SCORE: f32 = 1. / 3000.;
 
 pub const D100: Config = Config {
     size: Vec2::new(600., 150.),
     offset: Vec2::new(600. * 0.5, 150. * 0.35),
     init_speed: 360.,
-    init_jump_power: 0.5,
+    init_jump_power: 0.1,
+    trex_running_start: 2,
+    trex_running_end: 3,
+    trex_ducking_start: 0,
+    trex_ducking_end: 1,
     trex_sprite: SpriteConfig {
         size: UVec2::new(44, 47),
         offset: UVec2::new(848, 2),
         cols: 6,
+        rows: 1,
+    },
+    trex_ducking_sprite: SpriteConfig {
+        size: UVec2::new(59, 30),
+        offset: UVec2::new(1112, 19),
+        cols: 2,
         rows: 1,
     },
     ground_sprite: SpriteConfig {
@@ -55,8 +65,14 @@ pub struct Config {
     // Dynamics
     pub init_speed: f32,
     pub init_jump_power: f32,
+    // Sprite indices
+    pub trex_running_start: usize,
+    pub trex_running_end: usize,
+    pub trex_ducking_start: usize,
+    pub trex_ducking_end: usize,
     // Sprites
     pub trex_sprite: SpriteConfig,
+    pub trex_ducking_sprite: SpriteConfig,
     pub ground_sprite: SpriteConfig,
     pub num_sprite: SpriteConfig,
     pub cacti_sm: SpriteConfig,

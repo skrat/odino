@@ -30,13 +30,12 @@ fn main() {
             .set(ImagePlugin::default_nearest())
             .set(WindowPlugin {
                 primary_window: Some(Window {
-                    present_mode: bevy::window::PresentMode::AutoNoVsync,
+                    present_mode: bevy::window::PresentMode::Immediate,
                     ..default()
                 }),
                 ..default()
             }),
         PhysicsPlugins::default(),
-        // PhysicsDebugPlugin,
     ))
     .insert_resource(Gravity(Vec2::ZERO))
     .insert_resource(D100)
@@ -47,8 +46,10 @@ fn main() {
         TrexPlugin,
         GroundPlugin,
         CactiPlugin,
-        DebugPlugin,
     ));
+
+    #[cfg(feature = "dev")]
+    app.add_plugins((DebugPlugin, PhysicsDebugPlugin));
 
     #[cfg(feature = "dev")]
     app.insert_gizmo_config(

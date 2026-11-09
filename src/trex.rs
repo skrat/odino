@@ -7,9 +7,12 @@ pub struct TrexPlugin;
 
 impl Plugin for TrexPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(JumpKeyDown(false))
+        app.init_resource::<RunningLayout>()
+            .init_resource::<DuckingLayout>()
+            .insert_resource(JumpKeyDown(false))
             .add_systems(Startup, spawn_trex)
             .add_systems(OnEnter(SpriteState::Loaded), update_collider)
+            .add_systems(OnExit(GameState::GameOver), reset_trex)
             .add_systems(
                 FixedUpdate,
                 (
@@ -20,7 +23,13 @@ impl Plugin for TrexPlugin {
                     detect_collisions.run_if(in_state(GameState::Running)),
                 ),
             )
-            .add_systems(Update, jump_on_key.run_if(in_state(GameState::Running)));
+            .add_systems(
+                Update,
+                (
+                    jump_on_key.run_if(in_state(GameState::Running)),
+                    duck_on_key.run_if(in_state(GameState::Running)),
+                ),
+            );
     }
 }
 
@@ -36,13 +45,39 @@ pub fn trex_in_state(state: TrexState) -> impl FnMut(Option<Single<&Trex>>) -> b
 #[derive(Resource, Default)]
 struct JumpKeyDown(bool);
 
+#[derive(Resource, Deref)]
+struct RunningLayout(Handle<TextureAtlasLayout>);
+
+impl FromWorld for RunningLayout {
+    fn from_world(world: &mut World) -> Self {
+        let layout: TextureAtlasLayout = world.resource::<Config>().trex_sprite.into();
+        let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
+        RunningLayout(atlas_layouts.add(layout))
+    }
+}
+
+#[derive(Resource, Deref)]
+struct DuckingLayout(Handle<TextureAtlasLayout>);
+
+impl FromWorld for DuckingLayout {
+    fn from_world(world: &mut World) -> Self {
+        let layout: TextureAtlasLayout = world.resource::<Config>().trex_ducking_sprite.into();
+        let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
+        DuckingLayout(atlas_layouts.add(layout))
+    }
+}
+
 /// Components
+
+#[derive(Component)]
+struct TrexWrapper;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub enum TrexState {
     #[default]
     Running,
     Jumping,
+    Ducking,
 }
 
 #[derive(Component, Default)]
@@ -50,12 +85,6 @@ pub struct Trex {
     pub state: TrexState,
     pub jumped_at: f64,
     pub jump_power: f32,
-}
-
-#[derive(Component)]
-struct TrexAnimationIndices {
-    start: usize,
-    end: usize,
 }
 
 #[derive(Component, Deref, DerefMut)]
@@ -66,31 +95,22 @@ struct TrexAnimationTimer(Timer);
 fn spawn_trex(
     cfg: Res<Config>,
     image: Res<SpriteHandle>,
-    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    layout: Res<RunningLayout>,
     mut commands: Commands,
 ) {
-    let layout = atlas_layouts.add(cfg.trex_sprite);
-    let tile_start = 2;
-    let tile_end = 3;
-
-    let pos = Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.35, 100.);
-
     commands.spawn((
-        Transform::from_translation(pos),
+        Transform::from_translation(trex_running_pos(&cfg)),
         Visibility::default(),
+        TrexWrapper,
         children![(
             Name::new("T-Rex"),
             Sprite::from_atlas_image(
                 image.clone(),
                 TextureAtlas {
-                    layout,
-                    index: tile_start,
+                    layout: layout.clone(),
+                    index: cfg.trex_running_start,
                 },
             ),
-            TrexAnimationIndices {
-                start: tile_start,
-                end: tile_end,
-            },
             TrexAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             Transform::from_translation(Vec3::ZERO),
             TranslationInterpolation,
@@ -104,22 +124,28 @@ fn spawn_trex(
 
 fn animate_trex(
     t: Res<Time<Fixed>>,
-    q: Single<(
-        &Trex,
-        &TrexAnimationIndices,
-        &mut TrexAnimationTimer,
-        &mut Sprite,
-    )>,
+    cfg: Res<Config>,
+    query: Single<(&Trex, &mut TrexAnimationTimer, &mut Sprite)>,
 ) {
-    let (trex, indices, mut timer, mut sprite) = q.into_inner();
+    let (trex, mut timer, mut sprite) = query.into_inner();
     timer.tick(t.delta());
 
-    if trex.state == TrexState::Running
+    if trex.state != TrexState::Jumping
         && timer.just_finished()
         && let Some(atlas) = &mut sprite.texture_atlas
     {
-        atlas.index = if atlas.index == indices.end {
-            indices.start
+        let start = match trex.state {
+            TrexState::Running => cfg.trex_running_start,
+            TrexState::Ducking => cfg.trex_ducking_start,
+            _ => unreachable!(),
+        };
+        let end = match trex.state {
+            TrexState::Running => cfg.trex_running_end,
+            TrexState::Ducking => cfg.trex_ducking_end,
+            _ => unreachable!(),
+        };
+        atlas.index = if atlas.index == end {
+            start
         } else {
             atlas.index + 1
         };
@@ -130,37 +156,34 @@ fn jumping_trex(
     t: Res<Time<Fixed>>,
     cfg: Res<Config>,
     down: Res<JumpKeyDown>,
-    q: Single<(
-        &mut Trex,
-        &mut Transform,
-        &TrexAnimationIndices,
-        &mut Sprite,
-    )>,
+    q: Single<(&mut Trex, &mut Transform, &mut Sprite)>,
 ) {
-    let (mut trex, mut tf, indices, mut sprite) = q.into_inner();
-    let d = trex.jump_power * 0.5;
+    let (mut trex, mut tf, mut sprite) = q.into_inner();
+    let d = trex.jump_power * 0.65;
     let p = 1.0 - (0.5 - (t.elapsed_secs_f64() - trex.jumped_at) as f32 / d).abs() * 2.0;
     let e = EaseFunction::QuadraticOut.sample(p).unwrap_or(0.);
     tf.translation.y = cfg.size.y * 0.75 * trex.jump_power * e;
     if t.elapsed_secs_f64() - trex.jumped_at >= d as f64 {
         if down.0 {
+            // Re-jump
             trex.jumped_at = t.elapsed_secs_f64();
             trex.jump_power = cfg.init_jump_power;
         } else {
+            // Finish jump
             trex.state = TrexState::Running;
             let atlas = sprite.texture_atlas.as_mut().unwrap();
-            atlas.index = indices.start;
+            atlas.index = cfg.trex_running_start;
         }
     }
 }
 
 fn jump_on_key(
-    t: Res<Time<Virtual>>,
+    t: Res<Time<Fixed>>,
     cfg: Res<Config>,
     input: Res<ButtonInput<KeyCode>>,
+    sound_effect: Res<KeySoundEffect>,
     mut down: ResMut<JumpKeyDown>,
     query: Single<(&mut Trex, &mut Sprite)>,
-    sound_effect: Res<KeySoundEffect>,
     mut commands: Commands,
 ) {
     let (mut trex, mut sprite) = query.into_inner();
@@ -182,10 +205,52 @@ fn jump_on_key(
         }
     }
     if down.0 {
-        trex.jump_power += t.delta().as_secs_f32() * 1.2;
+        trex.jump_power = (trex.jump_power + t.delta().as_secs_f32() * 1.2).min(0.75);
     }
     if input.just_released(KeyCode::Space) || input.just_released(KeyCode::ArrowUp) {
         down.0 = false;
+    }
+}
+
+fn duck_on_key(
+    cfg: Res<Config>,
+    image: Res<SpriteHandle>,
+    layout_ducking: Res<DuckingLayout>,
+    layout_running: Res<RunningLayout>,
+    colliders: Res<ColliderMap>,
+    input: Res<ButtonInput<KeyCode>>,
+    trex: Single<(&mut Trex, &mut Sprite, &mut Collider)>,
+    wrapper: Single<&mut Transform, With<TrexWrapper>>,
+) {
+    const DUCKING_KEY: KeyCode = KeyCode::ArrowDown;
+    let (mut trex, mut sprite, mut collider) = trex.into_inner();
+    let mut wrapper_pos = wrapper.into_inner();
+    if input.just_pressed(DUCKING_KEY) && trex.state == TrexState::Running {
+        trex.state = TrexState::Ducking;
+        *sprite = Sprite::from_atlas_image(
+            image.clone(),
+            TextureAtlas {
+                layout: layout_ducking.clone(),
+                index: cfg.trex_ducking_start,
+            },
+        );
+        *collider = colliders
+            .get(&cfg.trex_ducking_sprite.rect(0))
+            .unwrap()
+            .clone();
+        *wrapper_pos = Transform::from_translation(trex_ducking_pos(&cfg));
+    }
+    if input.just_released(DUCKING_KEY) && trex.state == TrexState::Ducking {
+        trex.state = TrexState::Running;
+        *sprite = Sprite::from_atlas_image(
+            image.clone(),
+            TextureAtlas {
+                layout: layout_running.clone(),
+                index: cfg.trex_running_start,
+            },
+        );
+        *collider = colliders.get(&cfg.trex_sprite.rect(0)).unwrap().clone();
+        *wrapper_pos = Transform::from_translation(trex_running_pos(&cfg));
     }
 }
 
@@ -211,17 +276,54 @@ fn update_collider(
     cfg: Res<Config>,
     image: Res<SpriteHandle>,
     images: Res<Assets<Image>>,
-    trex: Single<Entity, With<Trex>>,
+    trex: Single<(Entity, &Trex)>,
     mut colliders: ResMut<ColliderMap>,
     mut commands: Commands,
 ) {
     match images.get(image.id()) {
         Some(img) => {
-            let rect: URect = cfg.trex_sprite.rect(0);
-            let collider = colliders.add(img, &rect, None);
-            let mut entity = commands.entity(*trex);
-            entity.insert(collider);
+            let running_rect: URect = cfg.trex_sprite.rect(0);
+            let running_collider = colliders.add(img, &running_rect, None);
+
+            let ducking_rect: URect = cfg.trex_ducking_sprite.rect(0);
+            let ducking_collider = colliders.add(img, &ducking_rect, None);
+
+            let (ent, trex) = trex.into_inner();
+            let mut entity = commands.entity(ent);
+
+            match trex.state {
+                TrexState::Ducking => entity.insert(ducking_collider),
+                _ => entity.insert(running_collider),
+            };
         }
         None => panic!(),
     }
+}
+
+fn reset_trex(
+    cfg: Res<Config>,
+    image: Res<SpriteHandle>,
+    layout: Res<RunningLayout>,
+    colliders: Res<ColliderMap>,
+    trex: Single<(&mut Trex, &mut Sprite, &mut Transform, &mut Collider)>,
+) {
+    let (mut trex, mut sprite, mut tf, mut collider) = trex.into_inner();
+    trex.state = TrexState::Running;
+    tf.translation.y = 0.;
+    *sprite = Sprite::from_atlas_image(
+        image.clone(),
+        TextureAtlas {
+            layout: layout.clone(),
+            index: cfg.trex_running_start,
+        },
+    );
+    *collider = colliders.get(&cfg.trex_sprite.rect(0)).unwrap().clone();
+}
+
+fn trex_running_pos(cfg: &Config) -> Vec3 {
+    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.35, 100.)
+}
+
+fn trex_ducking_pos(cfg: &Config) -> Vec3 {
+    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.2, 100.)
 }

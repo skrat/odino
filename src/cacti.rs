@@ -171,7 +171,7 @@ fn random_cacti(
             Visibility::default(),
             Transform::from_xyz(
                 cfg.size.x + total_width,
-                single_size.y as f32 * 0.5 - cfg.size.y * 0.05,
+                single_size.y as f32 * 0.5 - cfg.size.y * 0.03,
                 0.,
             ),
             TransformInterpolation,
@@ -207,9 +207,9 @@ fn animate_cacti(
     q: Query<(&mut Transform, &CactiTotalSize, Entity)>,
     mut commands: Commands,
 ) {
-    let d = t.delta_secs() * s.0;
+    let d = t.delta_secs_f64() * s.0 as f64;
     for (mut tf, size, ent) in q {
-        tf.translation.x -= d;
+        tf.translation.x -= d as f32;
         if tf.translation.x < -size.w {
             commands.entity(ent).despawn();
         }

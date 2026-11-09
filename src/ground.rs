@@ -88,17 +88,17 @@ fn animate_ground(
     root: Single<Entity, With<Ground>>,
     mut commands: Commands,
 ) {
-    let d = t.delta_secs() * speed.0;
+    let d = t.delta_secs_f64() * speed.0 as f64;
     let max = tiles
         .iter()
         .fold(0.0, |acc, (_, tf)| tf.translation.x.max(acc));
     let root = root.into_inner();
     // Move all ground tiles
     for (ent, mut tf) in tiles {
-        tf.translation.x -= d;
+        tf.translation.x -= d as f32;
         if tf.translation.x < -(0.5 * cfg.ground_sprite.size.x as f32) {
             // Move tile to back (right) and randomize atlas index
-            let x = max + cfg.ground_sprite.size.x as f32 - d;
+            let x = max + cfg.ground_sprite.size.x as f32 - d as f32;
             commands.entity(ent).despawn();
             commands.entity(root).with_children(|parent| {
                 parent.spawn(tile_bundle(&cfg, image.clone(), layout.clone(), x));
