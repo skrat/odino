@@ -8,10 +8,10 @@ use crate::{
 pub struct DebugPlugin;
 
 #[derive(Component)]
-struct GameStateLabel;
+struct GameStateLabel(GameState);
 
 #[derive(Component)]
-struct TrexStateLabel;
+struct TrexStateLabel(TrexState);
 
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
@@ -32,9 +32,9 @@ fn spawn_bottom_panel(mut commands: Commands) {
             row_gap: px(2),
             ..Default::default()
         })
-        .with_children(|builder| {
-            spawn_gamestate_label(builder);
-            spawn_trexstate_label(builder);
+        .with_children(|parent| {
+            spawn_gamestate_label(parent);
+            spawn_trexstate_label(parent);
         });
 }
 
@@ -45,19 +45,19 @@ fn gamestate_str(s: &GameState) -> String {
 fn spawn_gamestate_label(builder: &mut ChildSpawnerCommands) {
     builder.spawn(text_label(
         gamestate_str(&GameState::default()),
-        GameStateLabel,
+        GameStateLabel(GameState::default()),
     ));
 }
 
 fn update_gamestate_label(
     game_state: Res<State<GameState>>,
-    text: Single<&mut Text, With<GameStateLabel>>,
+    query: Single<(&mut GameStateLabel, &mut Text)>,
 ) {
-    if !game_state.is_changed() {
-        return;
+    let (mut s, mut t) = query.into_inner();
+    if game_state.get() != &s.0 {
+        *t = Text::new(gamestate_str(game_state.get()));
+        *s = GameStateLabel(game_state.get().clone());
     }
-    let mut t = text.into_inner();
-    *t = Text::new(gamestate_str(game_state.get()));
 }
 
 fn trexstate_str(s: &TrexState) -> String {
@@ -67,14 +67,17 @@ fn trexstate_str(s: &TrexState) -> String {
 fn spawn_trexstate_label(builder: &mut ChildSpawnerCommands) {
     builder.spawn(text_label(
         trexstate_str(&TrexState::default()),
-        TrexStateLabel,
+        TrexStateLabel(TrexState::default()),
     ));
 }
 
-fn update_trexstate_label(trex: Single<&Trex>, text: Single<&mut Text, With<TrexStateLabel>>) {
-    let mut t = text.into_inner();
-    let s = format!("{}, JP={}", trexstate_str(&trex.state), trex.jump_power);
-    *t = Text::new(s);
+fn update_trexstate_label(trex: Single<&Trex>, query: Single<(&mut TrexStateLabel, &mut Text)>) {
+    let (mut s, mut t) = query.into_inner();
+    if trex.state != s.0 {
+        let txt = format!("{}, JP={}", trexstate_str(&trex.state), trex.jump_power);
+        *t = Text::new(txt);
+        *s = TrexStateLabel(trex.state.clone());
+    }
 }
 
 fn text_label<Marker: Component>(text: impl Into<String>, m: Marker) -> impl Bundle {

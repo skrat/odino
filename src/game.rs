@@ -1,19 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::{assets::*, config::*, state::*, util::ColliderMap};
-
-#[derive(Component)]
-struct GameStateLabel;
-
-#[derive(Component)]
-struct ScoreCounter;
-
-#[derive(Component)]
-struct ScoreCounterNum;
-
-#[derive(Component, Deref, DerefMut)]
-struct ScoreTimer(Timer);
+use crate::{assets::SpriteHandle, config::*, state::*, util::ColliderMap};
 
 pub struct GameControlPlugin;
 
@@ -23,14 +11,28 @@ impl Plugin for GameControlPlugin {
             .insert_resource(Speed(D100.init_speed))
             .insert_resource(Score::default())
             .insert_resource(ColliderMap::default())
-            .add_systems(Startup, (spawn_gamestate_label, spawn_counter))
+            .add_systems(
+                Startup,
+                (
+                    spawn_gamestate_label,
+                    spawn_counter,
+                    spawn_speed_timer,
+                    pause_time,
+                ),
+            )
             .add_systems(OnEnter(GameState::Paused), update_gamestate_label)
             .add_systems(OnEnter(GameState::Running), update_gamestate_label)
             .add_systems(OnEnter(GameState::GameOver), update_gamestate_label)
             .add_systems(OnEnter(GameState::Running), unpause_time)
             .add_systems(OnExit(GameState::Running), pause_time)
             .add_systems(OnExit(GameState::GameOver), reset_game)
-            .add_systems(Update, increment_score.run_if(in_state(GameState::Running)))
+            .add_systems(
+                Update,
+                (
+                    increment_score.run_if(in_state(GameState::Running)),
+                    increment_speed.run_if(in_state(GameState::Running)),
+                ),
+            )
             .add_systems(
                 Update,
                 (
@@ -48,6 +50,21 @@ impl Plugin for GameControlPlugin {
         );
     }
 }
+
+#[derive(Component)]
+struct GameStateLabel;
+
+#[derive(Component)]
+struct ScoreCounter;
+
+#[derive(Component)]
+struct ScoreCounterNum;
+
+#[derive(Component, Deref, DerefMut)]
+struct ScoreTimer(Timer);
+
+#[derive(Component, Deref, DerefMut)]
+struct SpeedTimer(Timer);
 
 fn gamestate_label_str(s: &GameState) -> &'static str {
     match s {
@@ -78,11 +95,10 @@ fn update_gamestate_label(
 
 fn spawn_counter(
     cfg: Res<Config>,
-    asset_server: Res<AssetServer>,
+    image: Res<SpriteHandle>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut commands: Commands,
 ) {
-    let tex = asset_server.load(SPRITE_PATH);
     let layout = atlas_layouts.add(cfg.num_sprite);
     commands
         .spawn((
@@ -95,7 +111,7 @@ fn spawn_counter(
             for i in 0..5 {
                 parent.spawn((
                     Sprite::from_atlas_image(
-                        tex.clone(),
+                        image.clone(),
                         TextureAtlas {
                             layout: layout.clone(),
                             index: i,
@@ -108,8 +124,12 @@ fn spawn_counter(
         });
 }
 
+fn spawn_speed_timer(mut commands: Commands) {
+    commands.spawn(SpeedTimer(Timer::from_seconds(10., TimerMode::Repeating)));
+}
+
 fn increment_score(
-    t: Res<Time<Virtual>>,
+    t: Res<Time<Fixed>>,
     speed: Res<Speed>,
     mut score: ResMut<Score>,
     timer: Single<&mut ScoreTimer>,
@@ -132,6 +152,15 @@ fn increment_score(
             atlas.index = d;
             i += 1;
         }
+    }
+}
+
+fn increment_speed(t: Res<Time<Fixed>>, mut speed: ResMut<Speed>, timer: Single<&mut SpeedTimer>) {
+    let mut timer = timer.into_inner();
+    timer.tick(t.delta());
+
+    if timer.just_finished() {
+        speed.0 += 3.;
     }
 }
 

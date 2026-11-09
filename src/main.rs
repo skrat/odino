@@ -1,8 +1,11 @@
 use avian2d::prelude::*;
+#[cfg(feature = "dev")]
+use bevy::color::palettes::css::{ORANGE, RED};
 use bevy::{camera::ScalingMode, prelude::*};
 
 use crate::{
     assets::EmbeddedAssetsPlugin,
+    cacti::CactiPlugin,
     config::{Config, D100},
     debug::DebugPlugin,
     game::GameControlPlugin,
@@ -11,6 +14,7 @@ use crate::{
 };
 
 mod assets;
+mod cacti;
 mod config;
 mod debug;
 mod game;
@@ -22,9 +26,17 @@ mod util;
 fn main() {
     let mut app = App::new();
     app.add_plugins((
-        DefaultPlugins.set(ImagePlugin::default_nearest()),
+        DefaultPlugins
+            .set(ImagePlugin::default_nearest())
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    present_mode: bevy::window::PresentMode::AutoNoVsync,
+                    ..default()
+                }),
+                ..default()
+            }),
         PhysicsPlugins::default(),
-        PhysicsDebugPlugin,
+        // PhysicsDebugPlugin,
     ))
     .insert_resource(Gravity(Vec2::ZERO))
     .insert_resource(D100)
@@ -34,13 +46,15 @@ fn main() {
         GameControlPlugin,
         TrexPlugin,
         GroundPlugin,
+        CactiPlugin,
         DebugPlugin,
     ));
 
     #[cfg(feature = "dev")]
     app.insert_gizmo_config(
         PhysicsGizmos {
-            aabb_color: Some(Color::srgb(1.0, 0., 0.)),
+            aabb_color: Some(RED.with_alpha(0.5).into()),
+            collider_color: Some(ORANGE.with_alpha(0.5).into()),
             ..default()
         },
         GizmoConfig::default(),

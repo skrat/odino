@@ -7,21 +7,20 @@ pub struct TrexPlugin;
 
 impl Plugin for TrexPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<KeySoundEffect>()
-            .insert_resource(JumpKeyDown(false))
+        app.insert_resource(JumpKeyDown(false))
             .add_systems(Startup, spawn_trex)
             .add_systems(OnEnter(SpriteState::Loaded), update_collider)
             .add_systems(
-                Update,
+                FixedUpdate,
                 (
                     animate_trex.run_if(in_state(GameState::Running)),
-                    jump_on_key.run_if(in_state(GameState::Running)),
                     jumping_trex.run_if(
                         in_state(GameState::Running).and_then(trex_in_state(TrexState::Jumping)),
                     ),
                     detect_collisions.run_if(in_state(GameState::Running)),
                 ),
-            );
+            )
+            .add_systems(Update, jump_on_key.run_if(in_state(GameState::Running)));
     }
 }
 
@@ -37,19 +36,9 @@ pub fn trex_in_state(state: TrexState) -> impl FnMut(Option<Single<&Trex>>) -> b
 #[derive(Resource, Default)]
 struct JumpKeyDown(bool);
 
-#[derive(Resource, Deref)]
-struct KeySoundEffect(Handle<AudioSource>);
-
-impl FromWorld for KeySoundEffect {
-    fn from_world(world: &mut World) -> Self {
-        let asset_server = world.resource::<AssetServer>();
-        KeySoundEffect(asset_server.load(BUTTON_PRESS_PATH))
-    }
-}
-
 /// Components
 
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub enum TrexState {
     #[default]
     Running,
@@ -104,6 +93,7 @@ fn spawn_trex(
             },
             TrexAnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             Transform::from_translation(Vec3::ZERO),
+            TranslationInterpolation,
             RigidBody::Kinematic,
             Collider::rectangle(cfg.trex_sprite.size.x as f32, cfg.trex_sprite.size.y as f32),
             CollidingEntities::default(),
@@ -113,7 +103,7 @@ fn spawn_trex(
 }
 
 fn animate_trex(
-    t: Res<Time<Virtual>>,
+    t: Res<Time<Fixed>>,
     q: Single<(
         &Trex,
         &TrexAnimationIndices,
@@ -137,7 +127,7 @@ fn animate_trex(
 }
 
 fn jumping_trex(
-    t: Res<Time<Virtual>>,
+    t: Res<Time<Fixed>>,
     cfg: Res<Config>,
     down: Res<JumpKeyDown>,
     q: Single<(
@@ -200,13 +190,19 @@ fn jump_on_key(
 }
 
 fn detect_collisions(
+    hit_sound: Res<HitSoundEffect>,
     colliding_q: Query<(Entity, &CollidingEntities)>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut commands: Commands,
 ) {
     for (_, colliding_entities) in colliding_q {
         if colliding_entities.len() > 0 {
             info!("T-Rex collision!");
             next_state.set(GameState::GameOver);
+            commands.spawn((
+                AudioPlayer::new(hit_sound.clone()),
+                PlaybackSettings::DESPAWN,
+            ));
         }
     }
 }
