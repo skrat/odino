@@ -1,0 +1,58 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust nightly
+        run: rustup toolchain install nightly --profile minimal
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown wasm32-wasip1
+
+      - name: Download binaryen
+        run: curl -LO https://github.com/WebAssembly/binaryen/releases/download/version_133/binaryen-version_133-x86_64-linux.tar.gz
+
+      - name: Unpack binaryen
+        run: tar xzf binaryen-version_133-x86_64-linux.tar.gz
+
+      - name: Add binaryen to PATH
+        run: echo "$PWD/binaryen-version_133/bin" >> $GITHUB_PATH
+
+      - name: Install wasm-bindgen
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@0.2.129
+
+      - name: Build project
+        run: make
+
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
