@@ -5,8 +5,9 @@ pub struct EmbeddedAssetsPlugin;
 impl Plugin for EmbeddedAssetsPlugin {
     fn build(&self, app: &mut App) {
         embedded_asset!(app, "textures/100-offline-sprite.png");
-        embedded_asset!(app, "sounds/button-press.mp3");
-        embedded_asset!(app, "sounds/hit.mp3");
+        embedded_asset!(app, "sounds/button-press.ogg");
+        embedded_asset!(app, "sounds/hit.ogg");
+        app.init_asset::<AudioSource>();
         app.init_state::<SpriteState>();
         app.init_resource::<SpriteHandle>();
         app.init_resource::<KeySoundEffect>();
@@ -25,9 +26,9 @@ impl Plugin for EmbeddedAssetsPlugin {
 
 const SPRITE_PATH: &str = "embedded://odino/assets/textures/100-offline-sprite.png";
 
-const BUTTON_PRESS_PATH: &str = "embedded://odino/assets/sounds/button-press.mp3";
+const BUTTON_PRESS_PATH: &str = "embedded://odino/assets/sounds/button-press.ogg";
 
-const HIT_PATH: &str = "embedded://odino/assets/sounds/hit.mp3";
+const HIT_PATH: &str = "embedded://odino/assets/sounds/hit.ogg";
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, States)]
 pub enum SpriteState {

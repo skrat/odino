@@ -1,3 +1,6 @@
+use avian2d::debug_render::PhysicsGizmos;
+#[cfg(feature = "dev")]
+use bevy::color::palettes::css::{ORANGE, RED};
 use bevy::prelude::*;
 
 use crate::{
@@ -16,7 +19,15 @@ struct TrexStateLabel(TrexState);
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (spawn_bottom_panel /* spawn_ground_line */,))
-            .add_systems(Update, (update_gamestate_label, update_trexstate_label));
+            .add_systems(Update, (update_gamestate_label, update_trexstate_label))
+            .insert_gizmo_config(
+                PhysicsGizmos {
+                    aabb_color: Some(RED.with_alpha(0.5).into()),
+                    collider_color: Some(ORANGE.with_alpha(0.5).into()),
+                    ..default()
+                },
+                GizmoConfig::default(),
+            );
     }
 }
 
@@ -74,10 +85,10 @@ fn spawn_trexstate_label(builder: &mut ChildSpawnerCommands) {
 fn update_trexstate_label(trex: Single<&Trex>, query: Single<(&mut TrexStateLabel, &mut Text)>) {
     let (mut s, mut t) = query.into_inner();
     if trex.state != s.0 {
-        let txt = format!("{}, JP={}", trexstate_str(&trex.state), trex.jump_power);
-        *t = Text::new(txt);
         *s = TrexStateLabel(trex.state.clone());
     }
+    let txt = format!("{}, JP={}", trexstate_str(&trex.state), trex.jump_power);
+    *t = Text::new(txt);
 }
 
 fn text_label<Marker: Component>(text: impl Into<String>, m: Marker) -> impl Bundle {

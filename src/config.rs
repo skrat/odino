@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::util::ColliderMap;
 
-pub const SPEED_TO_SCORE: f32 = 1. / 3000.;
+pub const SPEED_TO_SCORE: f32 = 1. / 300.;
 
 pub const D100: Config = Config {
     size: Vec2::new(600., 150.),

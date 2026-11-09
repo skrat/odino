@@ -186,8 +186,10 @@ fn jump_on_key(
     query: Single<(&mut Trex, &mut Sprite)>,
     mut commands: Commands,
 ) {
+    const KEY0: KeyCode = KeyCode::Space;
+    const KEY1: KeyCode = KeyCode::Space;
     let (mut trex, mut sprite) = query.into_inner();
-    if input.just_pressed(KeyCode::Space) || input.just_pressed(KeyCode::ArrowUp) {
+    if input.just_pressed(KEY0) || input.just_pressed(KEY1) {
         match trex.state {
             TrexState::Running => {
                 let atlas = sprite.texture_atlas.as_mut().unwrap();
@@ -207,7 +209,7 @@ fn jump_on_key(
     if down.0 {
         trex.jump_power = (trex.jump_power + t.delta().as_secs_f32() * 1.2).min(0.75);
     }
-    if input.just_released(KeyCode::Space) || input.just_released(KeyCode::ArrowUp) {
+    if input.just_released(KEY0) || input.just_released(KEY1) {
         down.0 = false;
     }
 }
@@ -310,6 +312,7 @@ fn reset_trex(
     let (mut trex, mut sprite, mut tf, mut collider) = trex.into_inner();
     trex.state = TrexState::Running;
     tf.translation.y = 0.;
+    info!("T-Rex translation = {:?}", tf.translation);
     *sprite = Sprite::from_atlas_image(
         image.clone(),
         TextureAtlas {

@@ -27,7 +27,7 @@ impl Plugin for GameControlPlugin {
             .add_systems(OnExit(GameState::Running), pause_time)
             .add_systems(OnExit(GameState::GameOver), reset_game)
             .add_systems(
-                Update,
+                FixedUpdate,
                 (
                     increment_score.run_if(in_state(GameState::Running)),
                     increment_speed.run_if(in_state(GameState::Running)),
@@ -160,7 +160,7 @@ fn increment_speed(t: Res<Time<Fixed>>, mut speed: ResMut<Speed>, timer: Single<
     timer.tick(t.delta());
 
     if timer.just_finished() {
-        speed.0 += 3.;
+        speed.0 += 30.;
     }
 }
 

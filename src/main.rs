@@ -1,21 +1,22 @@
 use avian2d::prelude::*;
-#[cfg(feature = "dev")]
-use bevy::color::palettes::css::{ORANGE, RED};
 use bevy::{camera::ScalingMode, prelude::*};
 
 use crate::{
     assets::EmbeddedAssetsPlugin,
     cacti::CactiPlugin,
     config::{Config, D100},
-    debug::DebugPlugin,
     game::GameControlPlugin,
     ground::GroundPlugin,
     trex::TrexPlugin,
 };
 
+#[cfg(feature = "dev")]
+use crate::debug::DebugPlugin;
+
 mod assets;
 mod cacti;
 mod config;
+#[cfg(feature = "dev")]
 mod debug;
 mod game;
 mod ground;
@@ -30,7 +31,10 @@ fn main() {
             .set(ImagePlugin::default_nearest())
             .set(WindowPlugin {
                 primary_window: Some(Window {
+                    canvas: Some("canvas".into()),
+                    fit_canvas_to_parent: true,
                     present_mode: bevy::window::PresentMode::Immediate,
+                    prevent_default_event_handling: true,
                     ..default()
                 }),
                 ..default()
@@ -50,16 +54,6 @@ fn main() {
 
     #[cfg(feature = "dev")]
     app.add_plugins((DebugPlugin, PhysicsDebugPlugin));
-
-    #[cfg(feature = "dev")]
-    app.insert_gizmo_config(
-        PhysicsGizmos {
-            aabb_color: Some(RED.with_alpha(0.5).into()),
-            collider_color: Some(ORANGE.with_alpha(0.5).into()),
-            ..default()
-        },
-        GizmoConfig::default(),
-    );
 
     app.run();
 }
