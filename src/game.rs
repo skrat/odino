@@ -1,7 +1,12 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::{assets::SpriteHandle, config::*, state::*, util::ColliderMap};
+use crate::{
+    assets::{ScoreSoundEffect, SpriteHandle},
+    config::*,
+    state::*,
+    util::ColliderMap,
+};
 
 pub struct GameControlPlugin;
 
@@ -131,9 +136,11 @@ fn spawn_speed_timer(mut commands: Commands) {
 fn increment_score(
     t: Res<Time<Fixed>>,
     speed: Res<Speed>,
+    sound_effect: Res<ScoreSoundEffect>,
     mut score: ResMut<Score>,
     timer: Single<&mut ScoreTimer>,
     digits: Query<&mut Sprite, With<ScoreCounterNum>>,
+    mut commands: Commands,
 ) {
     let mut timer = timer.into_inner();
     timer.tick(t.delta());
@@ -151,6 +158,12 @@ fn increment_score(
             let atlas = sprite.texture_atlas.as_mut().unwrap();
             atlas.index = d;
             i += 1;
+        }
+        if val.ceil() as u32 % 100 == 0 {
+            commands.spawn((
+                AudioPlayer::new(sound_effect.clone()),
+                PlaybackSettings::DESPAWN,
+            ));
         }
     }
 }

@@ -7,11 +7,13 @@ impl Plugin for EmbeddedAssetsPlugin {
         embedded_asset!(app, "textures/100-offline-sprite.png");
         embedded_asset!(app, "sounds/button-press.ogg");
         embedded_asset!(app, "sounds/hit.ogg");
+        embedded_asset!(app, "sounds/score-reached.ogg");
         app.init_asset::<AudioSource>();
         app.init_state::<SpriteState>();
         app.init_resource::<SpriteHandle>();
         app.init_resource::<KeySoundEffect>();
         app.init_resource::<HitSoundEffect>();
+        app.init_resource::<ScoreSoundEffect>();
         app.add_systems(
             Update,
             check_sprite_loaded.run_if(in_state(SpriteState::Init)),
@@ -29,6 +31,8 @@ const SPRITE_PATH: &str = "embedded://odino/assets/textures/100-offline-sprite.p
 const BUTTON_PRESS_PATH: &str = "embedded://odino/assets/sounds/button-press.ogg";
 
 const HIT_PATH: &str = "embedded://odino/assets/sounds/hit.ogg";
+
+const SCORE_PATH: &str = "embedded://odino/assets/sounds/score-reached.ogg";
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, States)]
 pub enum SpriteState {
@@ -76,5 +80,15 @@ impl FromWorld for HitSoundEffect {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.resource::<AssetServer>();
         HitSoundEffect(asset_server.load(HIT_PATH))
+    }
+}
+
+#[derive(Resource, Deref)]
+pub struct ScoreSoundEffect(Handle<AudioSource>);
+
+impl FromWorld for ScoreSoundEffect {
+    fn from_world(world: &mut World) -> Self {
+        let asset_server = world.resource::<AssetServer>();
+        ScoreSoundEffect(asset_server.load(SCORE_PATH))
     }
 }
