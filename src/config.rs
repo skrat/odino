@@ -8,7 +8,7 @@ pub const D100: Config = Config {
     size: Vec2::new(600., 150.),
     offset: Vec2::new(600. * 0.5, 150. * 0.35),
     init_speed: 360.,
-    init_jump_power: 0.1,
+    init_jump_power: 0.4,
     trex_running_start: 2,
     trex_running_end: 3,
     trex_ducking_start: 0,

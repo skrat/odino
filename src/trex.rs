@@ -17,6 +17,7 @@ impl Plugin for TrexPlugin {
                 FixedUpdate,
                 (
                     animate_trex.run_if(in_state(GameState::Running)),
+                    jump_power_up.run_if(in_state(GameState::Running)),
                     jumping_trex.run_if(
                         in_state(GameState::Running).and_then(trex_in_state(TrexState::Jumping)),
                     ),
@@ -159,11 +160,13 @@ fn jumping_trex(
     q: Single<(&mut Trex, &mut Transform, &mut Sprite)>,
 ) {
     let (mut trex, mut tf, mut sprite) = q.into_inner();
-    let d = trex.jump_power * 0.65;
-    let p = 1.0 - (0.5 - (t.elapsed_secs_f64() - trex.jumped_at) as f32 / d).abs() * 2.0;
+    let delta = t.elapsed_secs_f64() - trex.jumped_at;
+    const SPEED: f32 = 1.5;
+    let d = trex.jump_power * (1. / SPEED);
+    let p = 1.0 - (0.5 - delta as f32 / d).abs() * 2.0;
     let e = EaseFunction::QuadraticOut.sample(p).unwrap_or(0.);
     tf.translation.y = cfg.size.y * 0.75 * trex.jump_power * e;
-    if t.elapsed_secs_f64() - trex.jumped_at >= d as f64 {
+    if delta >= d as f64 {
         if down.0 {
             // Re-jump
             trex.jumped_at = t.elapsed_secs_f64();
@@ -174,6 +177,13 @@ fn jumping_trex(
             let atlas = sprite.texture_atlas.as_mut().unwrap();
             atlas.index = cfg.trex_running_start;
         }
+    }
+}
+
+fn jump_power_up(t: Res<Time<Fixed>>, down: Res<JumpKeyDown>, query: Single<&mut Trex>) {
+    let mut trex = query.into_inner();
+    if down.0 {
+        trex.jump_power = (trex.jump_power + t.delta().as_secs_f32() * 2.2).min(0.75);
     }
 }
 
@@ -194,7 +204,7 @@ fn jump_on_key(
             TrexState::Running => {
                 let atlas = sprite.texture_atlas.as_mut().unwrap();
                 trex.state = TrexState::Jumping;
-                trex.jumped_at = t.elapsed_secs_wrapped_f64();
+                trex.jumped_at = t.elapsed_secs_f64();
                 trex.jump_power = cfg.init_jump_power;
                 down.0 = true;
                 atlas.index = 0;
@@ -205,9 +215,6 @@ fn jump_on_key(
             }
             _ => (),
         }
-    }
-    if down.0 {
-        trex.jump_power = (trex.jump_power + t.delta().as_secs_f32() * 1.2).min(0.75);
     }
     if input.just_released(KEY0) || input.just_released(KEY1) {
         down.0 = false;
