@@ -5,6 +5,7 @@ use crate::{
     assets::EmbeddedAssetsPlugin,
     cacti::CactiPlugin,
     config::{Config, D100},
+    dactyl::DactylPlugin,
     game::GameControlPlugin,
     ground::GroundPlugin,
     trex::TrexPlugin,
@@ -16,6 +17,7 @@ use crate::debug::DebugPlugin;
 mod assets;
 mod cacti;
 mod config;
+mod dactyl;
 #[cfg(feature = "dev")]
 mod debug;
 mod game;
@@ -50,6 +52,7 @@ fn main() {
         TrexPlugin,
         GroundPlugin,
         CactiPlugin,
+        DactylPlugin,
     ));
 
     #[cfg(feature = "dev")]

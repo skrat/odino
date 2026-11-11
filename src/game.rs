@@ -1,10 +1,14 @@
+use std::time::Duration;
+
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
 use crate::{
     assets::{ScoreSoundEffect, SpriteHandle},
-    config::*,
-    state::*,
+    cacti::CACTI_SPAWN,
+    config::{Config, D100, SPEED_TO_SCORE},
+    dactyl::DACTYL_SPAWN,
+    state::{GameState, Obstacle, ObstacleSystem, Score, Speed, not_in_state},
     util::ColliderMap,
 };
 
@@ -16,6 +20,7 @@ impl Plugin for GameControlPlugin {
             .insert_resource(Speed(D100.init_speed))
             .insert_resource(Score::default())
             .insert_resource(ColliderMap::default())
+            .insert_resource(ObstacleTimer(Timer::from_seconds(3.0, TimerMode::Once)))
             .add_systems(
                 Startup,
                 (
@@ -34,6 +39,7 @@ impl Plugin for GameControlPlugin {
             .add_systems(
                 FixedUpdate,
                 (
+                    spawn_obstacles.run_if(in_state(GameState::Running)),
                     increment_score.run_if(in_state(GameState::Running)),
                     increment_speed.run_if(in_state(GameState::Running)),
                 ),
@@ -56,6 +62,9 @@ impl Plugin for GameControlPlugin {
     }
 }
 
+#[derive(Resource, Deref, DerefMut)]
+struct ObstacleTimer(Timer);
+
 #[derive(Component)]
 struct GameStateLabel;
 
@@ -70,6 +79,27 @@ struct ScoreTimer(Timer);
 
 #[derive(Component, Deref, DerefMut)]
 struct SpeedTimer(Timer);
+
+fn spawn_obstacles(
+    t: Res<Time<Fixed>>,
+    score: Res<Score>,
+    mut timer: ResMut<ObstacleTimer>,
+    cacti_spawn: Res<ObstacleSystem<CACTI_SPAWN>>,
+    dactyl_spawn: Res<ObstacleSystem<DACTYL_SPAWN>>,
+    mut commands: Commands,
+) {
+    timer.tick(t.delta());
+    if timer.just_finished() {
+        if score.0 > 200. && rand::random_range(0..=10) > 8 {
+            commands.run_system(dactyl_spawn.0);
+            timer.set_duration(Duration::from_secs(rand::random_range(2..=3) as u64));
+        } else {
+            commands.run_system(cacti_spawn.0);
+            timer.set_duration(Duration::from_secs(rand::random_range(1..3) as u64));
+        }
+        timer.reset();
+    }
+}
 
 fn gamestate_label_str(s: &GameState) -> &'static str {
     match s {
@@ -107,7 +137,7 @@ fn spawn_counter(
     let layout = atlas_layouts.add(cfg.num_sprite);
     commands
         .spawn((
-            Transform::from_xyz(cfg.size.x * 0.8, cfg.size.y * 0.8, 100.),
+            Transform::from_xyz(cfg.size.x * 0.8, cfg.size.y * 0.75, 100.),
             Visibility::default(),
             ScoreTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             ScoreCounter,

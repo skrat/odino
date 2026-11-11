@@ -104,7 +104,6 @@ fn spawn_trex(
         Visibility::default(),
         TrexWrapper,
         children![(
-            Name::new("T-Rex"),
             Sprite::from_atlas_image(
                 image.clone(),
                 TextureAtlas {
@@ -319,7 +318,6 @@ fn reset_trex(
     let (mut trex, mut sprite, mut tf, mut collider) = trex.into_inner();
     trex.state = TrexState::Running;
     tf.translation.y = 0.;
-    info!("T-Rex translation = {:?}", tf.translation);
     *sprite = Sprite::from_atlas_image(
         image.clone(),
         TextureAtlas {
@@ -331,9 +329,9 @@ fn reset_trex(
 }
 
 fn trex_running_pos(cfg: &Config) -> Vec3 {
-    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.35, 100.)
+    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.35, 1000.)
 }
 
 fn trex_ducking_pos(cfg: &Config) -> Vec3 {
-    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.2, 100.)
+    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.2, 1000.)
 }

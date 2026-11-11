@@ -13,6 +13,15 @@ impl ColliderMap {
         self.insert(*rect, collider.clone());
         collider
     }
+
+    pub fn get_collider(&self, rect: &URect) -> Collider {
+        self.get(rect)
+            .and_then(|x| Some(x.clone()))
+            .unwrap_or_else(|| {
+                let size = rect.size();
+                Collider::rectangle(size.x as f32, size.y as f32)
+            })
+    }
 }
 
 pub fn points_for_convex_hull(img: &Image, rect: &URect, threshold: Option<f32>) -> Vec<RVector> {

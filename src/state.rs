@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemId, prelude::*};
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum GameState {
@@ -17,6 +17,9 @@ pub struct Score(pub f32);
 
 #[derive(Component)]
 pub struct Obstacle;
+
+#[derive(Resource, Deref)]
+pub struct ObstacleSystem<const T: usize>(pub SystemId);
 
 pub fn not_in_state<S: States>(state: S) -> impl FnMut(Option<Res<State<S>>>) -> bool + Clone {
     move |current_state: Option<Res<State<S>>>| match current_state {

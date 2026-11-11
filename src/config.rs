@@ -55,6 +55,12 @@ pub const D100: Config = Config {
         cols: 1,
         rows: 1,
     },
+    dactyl: SpriteConfig {
+        size: UVec2::new(46, 40),
+        offset: UVec2::new(134, 2),
+        cols: 2,
+        rows: 1,
+    },
 };
 
 #[derive(Debug, Resource)]
@@ -78,6 +84,7 @@ pub struct Config {
     pub cacti_sm: SpriteConfig,
     pub cacti_md: SpriteConfig,
     pub cacti_lg: SpriteConfig,
+    pub dactyl: SpriteConfig,
 }
 
 #[derive(Clone, Copy, Debug)]
