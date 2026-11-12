@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use crate::{
     assets::{ScoreSoundEffect, SpriteHandle},
     cacti::CACTI_SPAWN,
-    config::{Config, D100, SPEED_TO_SCORE},
+    config::{Config, D100, SPEED_TO_SCORE, UI_LAYER},
     dactyl::DACTYL_SPAWN,
     state::{GameState, Obstacle, ObstacleSystem, Score, Speed, not_in_state},
     util::ColliderMap,
@@ -54,7 +54,6 @@ impl Plugin for GameControlPlugin {
                 ),
             );
 
-        #[cfg(feature = "dev")]
         app.add_systems(
             Update,
             bevy::dev_tools::states::log_transitions::<GameState>,
@@ -115,7 +114,7 @@ fn spawn_gamestate_label(cfg: Res<Config>, state: Res<State<GameState>>, mut com
         Text2d::new(gamestate_label_str(state.get())),
         TextFont::from_font_size(FontSize::Px(16.0)),
         TextColor::BLACK,
-        Transform::from_xyz(cfg.size.x * 0.5, cfg.size.y * 0.5, 0.),
+        Transform::from_xyz(cfg.size.x * 0.5, cfg.size.y * 0.5, UI_LAYER),
         GameStateLabel,
     ));
 }
@@ -137,8 +136,8 @@ fn spawn_counter(
     let layout = atlas_layouts.add(cfg.num_sprite);
     commands
         .spawn((
-            Transform::from_xyz(cfg.size.x * 0.8, cfg.size.y * 0.75, 100.),
             Visibility::default(),
+            Transform::from_xyz(cfg.size.x * 0.8, cfg.size.y * 0.75, UI_LAYER),
             ScoreTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
             ScoreCounter,
         ))

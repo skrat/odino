@@ -4,6 +4,7 @@ build:
 	@cargo build \
 	--profile web \
 	--target wasm32-unknown-unknown \
+	--no-default-features \
 	--features web \
 
 	@~/.cargo/bin/wasm-bindgen \

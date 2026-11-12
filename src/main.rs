@@ -8,6 +8,7 @@ use crate::{
     dactyl::DactylPlugin,
     game::GameControlPlugin,
     ground::GroundPlugin,
+    sky::SkyPlugin,
     trex::TrexPlugin,
 };
 
@@ -22,6 +23,7 @@ mod dactyl;
 mod debug;
 mod game;
 mod ground;
+mod sky;
 mod state;
 mod trex;
 mod util;
@@ -49,8 +51,9 @@ fn main() {
     .add_plugins((
         EmbeddedAssetsPlugin,
         GameControlPlugin,
-        TrexPlugin,
         GroundPlugin,
+        SkyPlugin,
+        TrexPlugin,
         CactiPlugin,
         DactylPlugin,
     ));

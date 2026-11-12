@@ -45,7 +45,7 @@ fn spawn_ground(
     commands
         .spawn((
             Name::new("Ground"),
-            Transform::from_translation(Vec3::new(0., 0., 80.)),
+            Transform::from_translation(Vec3::new(0., 0., GROUND_LAYER)),
             Visibility::default(),
             Ground,
         ))

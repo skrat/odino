@@ -7,7 +7,7 @@ use rand::{
 
 use crate::{
     assets::{SpriteHandle, SpriteState},
-    config::Config,
+    config::{Config, OBSTACLE_LAYER},
     state::{GameState, Obstacle, ObstacleSystem, Speed},
     util::ColliderMap,
 };
@@ -133,7 +133,7 @@ fn spawn_cacti(
             Transform::from_xyz(
                 cfg.size.x + total_width,
                 single_size.y as f32 * 0.5 - cfg.size.y * 0.03,
-                0.,
+                OBSTACLE_LAYER,
             ),
             TransformInterpolation,
             RigidBody::Kinematic,

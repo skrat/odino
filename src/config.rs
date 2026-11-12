@@ -61,7 +61,31 @@ pub const D100: Config = Config {
         cols: 2,
         rows: 1,
     },
+    cloud: SpriteConfig {
+        size: UVec2::new(46, 13),
+        offset: UVec2::new(86, 2),
+        cols: 1,
+        rows: 1,
+    },
+    star: SpriteConfig {
+        size: UVec2::new(9, 9),
+        offset: UVec2::new(644, 2),
+        cols: 1,
+        rows: 3,
+    },
+    moon: SpriteConfig {
+        size: UVec2::new(20, 40),
+        offset: UVec2::new(484, 2),
+        cols: 8,
+        rows: 1,
+    },
 };
+
+pub const CLOUD_LAYER: f32 = 1.;
+pub const GROUND_LAYER: f32 = 2.;
+pub const OBSTACLE_LAYER: f32 = 10.;
+pub const TREX_LAYER: f32 = 100.;
+pub const UI_LAYER: f32 = 1000.;
 
 #[derive(Debug, Resource)]
 pub struct Config {
@@ -85,6 +109,9 @@ pub struct Config {
     pub cacti_md: SpriteConfig,
     pub cacti_lg: SpriteConfig,
     pub dactyl: SpriteConfig,
+    pub cloud: SpriteConfig,
+    pub star: SpriteConfig,
+    pub moon: SpriteConfig,
 }
 
 #[derive(Clone, Copy, Debug)]

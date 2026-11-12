@@ -317,7 +317,6 @@ fn reset_trex(
 ) {
     let (mut trex, mut sprite, mut tf, mut collider) = trex.into_inner();
     trex.state = TrexState::Running;
-    tf.translation.y = 0.;
     *sprite = Sprite::from_atlas_image(
         image.clone(),
         TextureAtlas {
@@ -326,12 +325,13 @@ fn reset_trex(
         },
     );
     *collider = colliders.get(&cfg.trex_sprite.rect(0)).unwrap().clone();
+    tf.translation.y = 0.;
 }
 
 fn trex_running_pos(cfg: &Config) -> Vec3 {
-    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.35, 1000.)
+    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.35, TREX_LAYER)
 }
 
 fn trex_ducking_pos(cfg: &Config) -> Vec3 {
-    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.2, 1000.)
+    Vec3::new(50., cfg.trex_sprite.size.y as f32 * 0.2, TREX_LAYER)
 }

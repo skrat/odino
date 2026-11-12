@@ -4,7 +4,7 @@ use rand::seq::IndexedRandom;
 
 use crate::{
     assets::{SpriteHandle, SpriteState},
-    config::Config,
+    config::{Config, OBSTACLE_LAYER},
     state::{GameState, Obstacle, ObstacleSystem, Speed},
     util::ColliderMap,
 };
@@ -75,7 +75,7 @@ fn spawn_dactyl(
         Transform::from_xyz(
             cfg.size.x + cfg.dactyl.size.x as f32,
             cfg.size.y * Y_OPTS.choose(&mut rand::rng()).unwrap(),
-            100.,
+            OBSTACLE_LAYER,
         ),
         TransformInterpolation,
         RigidBody::Kinematic,

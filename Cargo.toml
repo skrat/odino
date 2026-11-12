@@ -24,6 +24,7 @@ bevy = { version = "0.20", default-features = false, features = [
     "bevy_text",
     "bevy_window",
     "bevy_winit",
+    "bevy_dev_tools",
     "default_font",
     "png",
     "std",
@@ -40,7 +41,6 @@ rand = "0.10.3"
 default = ["dev"]
 dev = [
     "bevy/debug",
-    "bevy/bevy_dev_tools",
     "bevy/bevy_gizmos",
     "bevy/bevy_gizmos_render",
     "bevy/bevy_ui",
