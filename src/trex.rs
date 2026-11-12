@@ -97,6 +97,7 @@ fn spawn_trex(
     cfg: Res<Config>,
     image: Res<SpriteHandle>,
     layout: Res<RunningLayout>,
+    colliders: Res<ColliderMap>,
     mut commands: Commands,
 ) {
     commands.spawn((
@@ -115,7 +116,7 @@ fn spawn_trex(
             Transform::from_translation(Vec3::ZERO),
             TranslationInterpolation,
             RigidBody::Kinematic,
-            Collider::rectangle(cfg.trex_sprite.size.x as f32, cfg.trex_sprite.size.y as f32),
+            colliders.get_collider(&cfg.trex_sprite.rect(0)),
             CollidingEntities::default(),
             Trex::default(),
         )],
@@ -313,19 +314,11 @@ fn reset_trex(
     image: Res<SpriteHandle>,
     layout: Res<RunningLayout>,
     colliders: Res<ColliderMap>,
-    trex: Single<(&mut Trex, &mut Sprite, &mut Transform, &mut Collider)>,
+    trex: Single<Entity, With<Trex>>,
+    mut commands: Commands,
 ) {
-    let (mut trex, mut sprite, mut tf, mut collider) = trex.into_inner();
-    trex.state = TrexState::Running;
-    *sprite = Sprite::from_atlas_image(
-        image.clone(),
-        TextureAtlas {
-            layout: layout.clone(),
-            index: cfg.trex_running_start,
-        },
-    );
-    *collider = colliders.get(&cfg.trex_sprite.rect(0)).unwrap().clone();
-    tf.translation.y = 0.;
+    commands.entity(trex.into_inner()).despawn();
+    spawn_trex(cfg, image, layout, colliders, commands);
 }
 
 fn trex_running_pos(cfg: &Config) -> Vec3 {
