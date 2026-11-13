@@ -148,40 +148,60 @@ fn spawn_score(
     cfg: Res<Config>,
     image: Res<SpriteHandle>,
     layout: Res<NumLayout>,
-    commands: Commands,
+    mut commands: Commands,
 ) {
     spawn_counter(
-        cfg.size.x * 0.8,
+        cfg.size.x * 0.9,
         ScoreCounterNum,
-        cfg,
-        image,
-        layout,
-        commands,
+        &cfg,
+        image.clone(),
+        layout.clone(),
+        &mut commands,
     );
 }
+
 fn spawn_hiscore(
     cfg: Res<Config>,
     image: Res<SpriteHandle>,
     layout: Res<NumLayout>,
-    commands: Commands,
+    mut commands: Commands,
 ) {
     spawn_counter(
-        cfg.size.x * 0.65,
+        cfg.size.x * 0.79,
         HiScoreCounterNum,
-        cfg,
-        image,
-        layout,
-        commands,
+        &cfg,
+        image.clone(),
+        layout.clone(),
+        &mut commands,
     );
+    for i in 0..2 {
+        commands
+            .spawn((
+                Visibility::default(),
+                Transform::from_xyz(cfg.size.x * 0.73, cfg.size.y * 0.75, UI_LAYER),
+            ))
+            .with_children(|parent| {
+                parent.spawn((
+                    Sprite::from_atlas_image(
+                        image.clone(),
+                        TextureAtlas {
+                            layout: layout.clone(),
+                            index: 10 + i,
+                        },
+                    ),
+                    Transform::from_xyz((i * (cfg.num_sprite.size.x as usize + 1)) as f32, 0., 0.),
+                ));
+            });
+    }
 }
 
 fn spawn_counter<T: Component + Clone>(
     x: f32,
     marker: T,
-    cfg: Res<Config>,
-    image: Res<SpriteHandle>,
-    layout: Res<NumLayout>,
-    mut commands: Commands,
+    cfg: &Config,
+    image: Handle<Image>,
+    layout: Handle<TextureAtlasLayout>,
+    commands: &mut Commands,
 ) {
     commands
         .spawn((

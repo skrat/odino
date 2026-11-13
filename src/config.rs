@@ -34,7 +34,7 @@ pub const D100: Config = Config {
     num_sprite: SpriteConfig {
         size: UVec2::new(10, 11),
         offset: UVec2::new(655, 2),
-        cols: 10,
+        cols: 12,
         rows: 1,
     },
     cacti_sm: SpriteConfig {
