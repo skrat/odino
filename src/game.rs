@@ -9,7 +9,7 @@ use crate::{
     config::{Config, D100, SPEED_TO_SCORE, UI_LAYER},
     dactyl::DACTYL_SPAWN,
     state::{GameState, Obstacle, ObstacleSystem, Score, Speed, not_in_state},
-    util::ColliderMap,
+    util::{ColliderMap, add_layout},
 };
 
 pub struct GameControlPlugin;
@@ -19,23 +19,28 @@ impl Plugin for GameControlPlugin {
         app.init_state::<GameState>()
             .insert_resource(Speed(D100.init_speed))
             .insert_resource(Score::default())
+            .insert_resource(HiScore::default())
             .insert_resource(ColliderMap::default())
             .insert_resource(ObstacleTimer(Timer::from_seconds(3.0, TimerMode::Once)))
-            .add_systems(
-                Startup,
-                (
-                    spawn_gamestate_label,
-                    spawn_counter,
-                    spawn_speed_timer,
-                    pause_time,
-                ),
-            )
+            .insert_resource(ScoreTimer(Timer::from_seconds(0.1, TimerMode::Repeating)))
+            .insert_resource(SpeedTimer(Timer::from_seconds(10., TimerMode::Repeating)))
+            .init_resource::<NumLayout>()
             .add_systems(OnEnter(GameState::Paused), update_gamestate_label)
             .add_systems(OnEnter(GameState::Running), update_gamestate_label)
             .add_systems(OnEnter(GameState::GameOver), update_gamestate_label)
             .add_systems(OnEnter(GameState::Running), unpause_time)
             .add_systems(OnExit(GameState::Running), pause_time)
+            .add_systems(OnEnter(GameState::GameOver), update_hiscore)
             .add_systems(OnExit(GameState::GameOver), reset_game)
+            .add_systems(
+                Startup,
+                (
+                    spawn_gamestate_label,
+                    spawn_score,
+                    spawn_hiscore,
+                    pause_time,
+                ),
+            )
             .add_systems(
                 FixedUpdate,
                 (
@@ -61,23 +66,35 @@ impl Plugin for GameControlPlugin {
     }
 }
 
+#[derive(Resource, Deref)]
+struct NumLayout(Handle<TextureAtlasLayout>);
+
 #[derive(Resource, Deref, DerefMut)]
 struct ObstacleTimer(Timer);
+
+#[derive(Resource, Deref, DerefMut)]
+struct ScoreTimer(Timer);
+
+#[derive(Resource, Deref, DerefMut)]
+struct SpeedTimer(Timer);
+
+#[derive(Resource, Default)]
+struct HiScore(f32);
 
 #[derive(Component)]
 struct GameStateLabel;
 
-#[derive(Component)]
-struct ScoreCounter;
-
-#[derive(Component)]
+#[derive(Component, Clone)]
 struct ScoreCounterNum;
 
-#[derive(Component, Deref, DerefMut)]
-struct ScoreTimer(Timer);
+#[derive(Component, Clone)]
+struct HiScoreCounterNum;
 
-#[derive(Component, Deref, DerefMut)]
-struct SpeedTimer(Timer);
+impl FromWorld for NumLayout {
+    fn from_world(world: &mut World) -> Self {
+        NumLayout(add_layout(world, |cfg| cfg.num_sprite.into()))
+    }
+}
 
 fn spawn_obstacles(
     t: Res<Time<Fixed>>,
@@ -127,19 +144,49 @@ fn update_gamestate_label(
     *t = Text2d::new(gamestate_label_str(state.get()));
 }
 
-fn spawn_counter(
+fn spawn_score(
     cfg: Res<Config>,
     image: Res<SpriteHandle>,
-    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    layout: Res<NumLayout>,
+    commands: Commands,
+) {
+    spawn_counter(
+        cfg.size.x * 0.8,
+        ScoreCounterNum,
+        cfg,
+        image,
+        layout,
+        commands,
+    );
+}
+fn spawn_hiscore(
+    cfg: Res<Config>,
+    image: Res<SpriteHandle>,
+    layout: Res<NumLayout>,
+    commands: Commands,
+) {
+    spawn_counter(
+        cfg.size.x * 0.65,
+        HiScoreCounterNum,
+        cfg,
+        image,
+        layout,
+        commands,
+    );
+}
+
+fn spawn_counter<T: Component + Clone>(
+    x: f32,
+    marker: T,
+    cfg: Res<Config>,
+    image: Res<SpriteHandle>,
+    layout: Res<NumLayout>,
     mut commands: Commands,
 ) {
-    let layout = atlas_layouts.add(cfg.num_sprite);
     commands
         .spawn((
             Visibility::default(),
-            Transform::from_xyz(cfg.size.x * 0.8, cfg.size.y * 0.75, UI_LAYER),
-            ScoreTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-            ScoreCounter,
+            Transform::from_xyz(x, cfg.size.y * 0.75, UI_LAYER),
         ))
         .with_children(|parent| {
             for i in 0..5 {
@@ -148,47 +195,30 @@ fn spawn_counter(
                         image.clone(),
                         TextureAtlas {
                             layout: layout.clone(),
-                            index: i,
+                            index: 0,
                         },
                     ),
                     Transform::from_xyz((i * (cfg.num_sprite.size.x as usize + 1)) as f32, 0., 0.),
-                    ScoreCounterNum,
+                    marker.clone(),
                 ));
             }
         });
 }
 
-fn spawn_speed_timer(mut commands: Commands) {
-    commands.spawn(SpeedTimer(Timer::from_seconds(10., TimerMode::Repeating)));
-}
-
 fn increment_score(
     t: Res<Time<Fixed>>,
     speed: Res<Speed>,
-    sound_effect: Res<ScoreSoundEffect>,
     mut score: ResMut<Score>,
-    timer: Single<&mut ScoreTimer>,
+    mut timer: ResMut<ScoreTimer>,
+    sound_effect: Res<ScoreSoundEffect>,
     digits: Query<&mut Sprite, With<ScoreCounterNum>>,
     mut commands: Commands,
 ) {
-    let mut timer = timer.into_inner();
     timer.tick(t.delta());
-
     if timer.just_finished() {
-        let val = score.0 + (speed.0 * SPEED_TO_SCORE);
-        *score = Score(val);
-        let chars = format!("{:0>5}", val.ceil() as u32)
-            .chars()
-            .collect::<Vec<_>>();
-
-        let mut i = 0;
-        for mut sprite in digits {
-            let d = chars[i].to_string().parse::<usize>().unwrap();
-            let atlas = sprite.texture_atlas.as_mut().unwrap();
-            atlas.index = d;
-            i += 1;
-        }
-        if val.ceil() as u32 % 100 == 0 {
+        score.0 = score.0 + (speed.0 * SPEED_TO_SCORE);
+        set_counter(score.0.ceil() as u32, digits);
+        if score.0.ceil() as u32 % 100 == 0 {
             commands.spawn((
                 AudioPlayer::new(sound_effect.clone()),
                 PlaybackSettings::DESPAWN,
@@ -197,10 +227,8 @@ fn increment_score(
     }
 }
 
-fn increment_speed(t: Res<Time<Fixed>>, mut speed: ResMut<Speed>, timer: Single<&mut SpeedTimer>) {
-    let mut timer = timer.into_inner();
+fn increment_speed(t: Res<Time<Fixed>>, mut speed: ResMut<Speed>, mut timer: ResMut<SpeedTimer>) {
     timer.tick(t.delta());
-
     if timer.just_finished() {
         speed.0 += 30.;
     }
@@ -260,4 +288,25 @@ fn reset_game(
     speed.0 = cfg.init_speed;
     score.0 = 0.;
     commands.despawn_all::<With<Obstacle>>();
+}
+
+fn update_hiscore(
+    score: Res<Score>,
+    mut hiscore: ResMut<HiScore>,
+    query: Query<&mut Sprite, With<HiScoreCounterNum>>,
+) {
+    hiscore.0 = score.0.max(hiscore.0);
+    set_counter(hiscore.0.ceil() as u32, query);
+}
+
+fn set_counter<T: Component>(val: u32, query: Query<&mut Sprite, With<T>>) {
+    let chars = format!("{:0>5}", val).chars().collect::<Vec<_>>();
+
+    let mut i = 0;
+    for mut sprite in query {
+        let d = chars[i].to_string().parse::<usize>().unwrap();
+        let atlas = sprite.texture_atlas.as_mut().unwrap();
+        atlas.index = d;
+        i += 1;
+    }
 }

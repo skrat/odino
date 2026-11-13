@@ -6,7 +6,7 @@ use crate::{
     assets::{SpriteHandle, SpriteState},
     config::{Config, OBSTACLE_LAYER},
     state::{GameState, Obstacle, ObstacleSystem, Speed},
-    util::ColliderMap,
+    util::{ColliderMap, add_layout},
 };
 
 pub struct DactylPlugin;
@@ -36,11 +36,9 @@ struct DactylHandles {
 
 impl FromWorld for DactylHandles {
     fn from_world(world: &mut World) -> Self {
-        let cfg = world.resource::<Config>();
-        let layout: TextureAtlasLayout = cfg.dactyl.into();
-        let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
-        let handle = atlas_layouts.add(layout);
-        DactylHandles { layout: handle }
+        DactylHandles {
+            layout: add_layout(world, |cfg| cfg.dactyl.into()),
+        }
     }
 }
 

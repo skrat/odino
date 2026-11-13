@@ -51,9 +51,7 @@ struct RunningLayout(Handle<TextureAtlasLayout>);
 
 impl FromWorld for RunningLayout {
     fn from_world(world: &mut World) -> Self {
-        let layout: TextureAtlasLayout = world.resource::<Config>().trex_sprite.into();
-        let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
-        RunningLayout(atlas_layouts.add(layout))
+        RunningLayout(add_layout(world, |cfg| cfg.trex_sprite.into()))
     }
 }
 
@@ -62,9 +60,7 @@ struct DuckingLayout(Handle<TextureAtlasLayout>);
 
 impl FromWorld for DuckingLayout {
     fn from_world(world: &mut World) -> Self {
-        let layout: TextureAtlasLayout = world.resource::<Config>().trex_ducking_sprite.into();
-        let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
-        DuckingLayout(atlas_layouts.add(layout))
+        DuckingLayout(add_layout(world, |cfg| cfg.trex_ducking_sprite.into()))
     }
 }
 

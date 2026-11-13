@@ -9,7 +9,7 @@ use crate::{
     assets::{SpriteHandle, SpriteState},
     config::{Config, OBSTACLE_LAYER},
     state::{GameState, Obstacle, ObstacleSystem, Speed},
-    util::ColliderMap,
+    util::{ColliderMap, add_layout},
 };
 
 pub struct CactiPlugin;
@@ -37,18 +37,10 @@ struct CactiHandles {
 
 impl FromWorld for CactiHandles {
     fn from_world(world: &mut World) -> Self {
-        let cfg = world.resource::<Config>();
-        let lsm: TextureAtlasLayout = cfg.cacti_sm.into();
-        let lmd: TextureAtlasLayout = cfg.cacti_md.into();
-        let llg: TextureAtlasLayout = cfg.cacti_lg.into();
-        let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
-        let layout_sm = atlas_layouts.add(lsm);
-        let layout_md = atlas_layouts.add(lmd);
-        let layout_lg = atlas_layouts.add(llg);
         CactiHandles {
-            layout_sm,
-            layout_md,
-            layout_lg,
+            layout_sm: add_layout(world, |cfg| cfg.cacti_sm.into()),
+            layout_md: add_layout(world, |cfg| cfg.cacti_md.into()),
+            layout_lg: add_layout(world, |cfg| cfg.cacti_lg.into()),
         }
     }
 }

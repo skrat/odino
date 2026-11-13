@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use avian2d::{collision::collider::Collider, math::RVector};
 use bevy::prelude::*;
 
+use crate::config::Config;
+
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct ColliderMap(HashMap<URect, Collider>);
 
@@ -39,4 +41,13 @@ pub fn points_for_convex_hull(img: &Image, rect: &URect, threshold: Option<f32>)
         }
     }
     points
+}
+
+pub fn add_layout<F>(world: &mut World, from: F) -> Handle<TextureAtlasLayout>
+where
+    F: Fn(&Config) -> TextureAtlasLayout,
+{
+    let layout = from(world.resource::<Config>());
+    let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
+    atlas_layouts.add(layout)
 }

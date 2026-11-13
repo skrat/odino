@@ -1,7 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::{assets::SpriteHandle, config::*, state::*};
+use crate::{assets::SpriteHandle, config::*, state::*, util::add_layout};
 
 pub struct GroundPlugin;
 
@@ -27,9 +27,7 @@ struct GroundAtlas(Handle<TextureAtlasLayout>);
 
 impl FromWorld for GroundAtlas {
     fn from_world(world: &mut World) -> Self {
-        let layout: TextureAtlasLayout = world.resource::<Config>().ground_sprite.into();
-        let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
-        GroundAtlas(atlas_layouts.add(layout))
+        GroundAtlas(add_layout(world, |cfg| cfg.ground_sprite.into()))
     }
 }
 

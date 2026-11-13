@@ -6,6 +6,7 @@ use crate::{
     assets::SpriteHandle,
     config::{CLOUD_LAYER, Config},
     state::GameState,
+    util::add_layout,
 };
 
 pub struct SkyPlugin;
@@ -37,11 +38,8 @@ struct Cloud;
 
 impl FromWorld for SkyHandles {
     fn from_world(world: &mut World) -> Self {
-        let cfg = world.resource::<Config>();
-        let cloud: TextureAtlasLayout = cfg.cloud.into();
-        let mut atlas_layouts = world.resource_mut::<Assets<TextureAtlasLayout>>();
         SkyHandles {
-            cloud: atlas_layouts.add(cloud),
+            cloud: add_layout(world, |cfg| cfg.cloud.into()),
         }
     }
 }
