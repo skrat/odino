@@ -97,8 +97,8 @@ fn spawn_trex(
     mut commands: Commands,
 ) {
     commands.spawn((
-        Transform::from_translation(trex_running_pos(&cfg)),
         Visibility::default(),
+        Transform::from_translation(trex_running_pos(&cfg)),
         TrexWrapper,
         children![(
             Sprite::from_atlas_image(
@@ -310,10 +310,10 @@ fn reset_trex(
     image: Res<SpriteHandle>,
     layout: Res<RunningLayout>,
     colliders: Res<ColliderMap>,
-    trex: Single<Entity, With<Trex>>,
+    wrapper: Single<Entity, With<TrexWrapper>>,
     mut commands: Commands,
 ) {
-    commands.entity(trex.into_inner()).despawn();
+    commands.entity(wrapper.into_inner()).despawn();
     spawn_trex(cfg, image, layout, colliders, commands);
 }
 
