@@ -11,8 +11,6 @@ use crate::{
 
 pub struct DactylPlugin;
 
-pub const DACTYL_SPAWN: usize = 2;
-
 impl Plugin for DactylPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DactylHandles>()
@@ -49,8 +47,14 @@ struct Dactyl;
 struct DactylAnimationTimer(Timer);
 
 fn register_dactyl_spawn(mut commands: Commands) {
-    let id = commands.register_system(spawn_dactyl);
-    commands.insert_resource(ObstacleSystem::<DACTYL_SPAWN>(id));
+    let system_id = commands.register_system(spawn_dactyl);
+    commands.spawn(ObstacleSystem {
+        system_id,
+        weight: 1,
+        min_score: Some(200.),
+        delay_min: 2,
+        delay_max: 3,
+    });
 }
 
 fn spawn_dactyl(

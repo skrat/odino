@@ -18,8 +18,14 @@ pub struct Score(pub f32);
 #[derive(Component)]
 pub struct Obstacle;
 
-#[derive(Resource, Deref)]
-pub struct ObstacleSystem<const T: usize>(pub SystemId);
+#[derive(Component)]
+pub struct ObstacleSystem {
+    pub weight: usize,
+    pub system_id: SystemId,
+    pub min_score: Option<f32>,
+    pub delay_min: u64,
+    pub delay_max: u64,
+}
 
 pub fn not_in_state<S: States>(state: S) -> impl FnMut(Option<Res<State<S>>>) -> bool + Clone {
     move |current_state: Option<Res<State<S>>>| match current_state {

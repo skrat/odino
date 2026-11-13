@@ -2,12 +2,11 @@ use std::time::Duration;
 
 use avian2d::prelude::*;
 use bevy::prelude::*;
+use rand::distr::{Distribution, weighted::WeightedIndex};
 
 use crate::{
     assets::{ScoreSoundEffect, SpriteHandle},
-    cacti::CACTI_SPAWN,
     config::{Config, D100, SPEED_TO_SCORE, UI_LAYER},
-    dactyl::DACTYL_SPAWN,
     state::{GameState, Obstacle, ObstacleSystem, Score, Speed, not_in_state},
     util::{ColliderMap, add_layout},
 };
@@ -100,19 +99,22 @@ fn spawn_obstacles(
     t: Res<Time<Fixed>>,
     score: Res<Score>,
     mut timer: ResMut<ObstacleTimer>,
-    cacti_spawn: Res<ObstacleSystem<CACTI_SPAWN>>,
-    dactyl_spawn: Res<ObstacleSystem<DACTYL_SPAWN>>,
+    query: Query<&ObstacleSystem>,
     mut commands: Commands,
 ) {
     timer.tick(t.delta());
     if timer.just_finished() {
-        if score.0 > 200. && rand::random_range(0..=10) > 8 {
-            commands.run_system(dactyl_spawn.0);
-            timer.set_duration(Duration::from_secs(rand::random_range(2..=3) as u64));
-        } else {
-            commands.run_system(cacti_spawn.0);
-            timer.set_duration(Duration::from_secs(rand::random_range(1..3) as u64));
-        }
+        let xs: Vec<&ObstacleSystem> = query
+            .iter()
+            .filter(|obs| obs.min_score.map_or(true, |min| min < score.0))
+            .collect();
+        let weights: Vec<usize> = xs.iter().map(|obs| obs.weight).collect();
+        let dist = WeightedIndex::new(&weights).unwrap();
+        let obs = xs[dist.sample(&mut rand::rng())];
+        commands.run_system(obs.system_id);
+        timer.set_duration(Duration::from_secs(rand::random_range(
+            obs.delay_min..=obs.delay_max,
+        )));
         timer.reset();
     }
 }

@@ -14,8 +14,6 @@ use crate::{
 
 pub struct CactiPlugin;
 
-pub const CACTI_SPAWN: usize = 1;
-
 impl Plugin for CactiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CactiHandles>()
@@ -89,8 +87,14 @@ impl Cacti {
 }
 
 fn register_cacti_spawn(mut commands: Commands) {
-    let cacti_id = commands.register_system(spawn_cacti);
-    commands.insert_resource(ObstacleSystem::<CACTI_SPAWN>(cacti_id));
+    let system_id = commands.register_system(spawn_cacti);
+    commands.spawn(ObstacleSystem {
+        system_id,
+        weight: 4,
+        min_score: None,
+        delay_min: 1,
+        delay_max: 2,
+    });
 }
 
 fn spawn_cacti(
